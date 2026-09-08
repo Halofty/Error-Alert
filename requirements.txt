@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+redis
+slack-sdk
+apscheduler
+pydantic-settings
