@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from typing import Any
+from app.adapters.base import DigestReport, ErrorEvent
 
 from slack_sdk.web.async_client import AsyncWebClient
 
-from app.adapters.base import DigestReport, ErrorEvent
+STATUS_LABEL = {"open": "🔴 미해결", "acked": "🟡 확인함", "resolved": "🟢 해결됨"}
+STATUS_COLOR = {"open": "#C13F26", "acked": "#B8860B", "resolved": "#1C8A4C"}
 
 
 class SlackAdapter:
@@ -14,63 +15,17 @@ class SlackAdapter:
         self._client = AsyncWebClient(token=bot_token)
         self._channel_id = channel_id
 
-    async def post_new_error(self, event: ErrorEvent, occurrence_count: int) -> str:
-        resp = await self._client.chat_postMessage(
-            channel=self._channel_id,
-            attachments=[
-                {
-                    "color": "#C13F26",
-                    "blocks": [
-                        {
-                            "type": "section",
-                            "text": {
-                                "type": "mrkdwn",
-                                "text": f"*{event.dag_id} · {event.task_id}*\n```{event.message[:300]}```",
-                            },
-                        },
-                        {
-                            "type": "context",
-                            "elements": [{"type": "mrkdwn", "text": f"{occurrence_count}번째 발생"}],
-                        },
-                        {
-                            "type": "actions",
-                            "elements": [
-                                {
-                                    "type": "button",
-                                    "text": {"type": "plain_text", "text": "확인"},
-                                    "action_id": "ack",
-                                    "value": event.fingerprint,
-                                },
-                                {
-                                    "type": "button",
-                                    "text": {"type": "plain_text", "text": "해결"},
-                                    "action_id": "resolve",
-                                    "value": event.fingerprint,
-                                },
-                            ],
-                        },
-                    ],
-                }
-            ],
-        )
-        return resp["ts"]
+    async def upsert_error(
+        self, ref_id: str | None, event: ErrorEvent, occurrence_count: int, status: str
+    ) -> str:
+        attachment = {"color": STATUS_COLOR[status], "blocks": _error_blocks(event, occurrence_count, status)}
 
-    async def bump_occurrence(self, ref_id: str, occurrence_count: int) -> None:
-        await self._client.chat_update(
-            channel=self._channel_id,
-            ts=ref_id,
-            attachments=[
-                {
-                    "color": "#C13F26",
-                    "blocks": [
-                        {
-                            "type": "context",
-                            "elements": [{"type": "mrkdwn", "text": f"{occurrence_count}번째 발생 (갱신됨)"}],
-                        }
-                    ],
-                }
-            ],
-        )
+        if ref_id is None:
+            resp = await self._client.chat_postMessage(channel=self._channel_id, attachments=[attachment])
+            return resp["ts"]
+
+        await self._client.chat_update(channel=self._channel_id, ts=ref_id, attachments=[attachment])
+        return ref_id
 
     async def update_dashboard(self, ref_id: str | None, stats: dict) -> str:
         blocks = _dashboard_blocks(stats)
@@ -100,8 +55,35 @@ class SlackAdapter:
             ],
         )
 
-    async def handle_interaction(self, payload: dict[str, Any]) -> None:
-        raise NotImplementedError  # Socket Mode 리스너가 action_id별로 라우팅해 채운다
+
+def _error_blocks(event: ErrorEvent, occurrence_count: int, status: str) -> list[dict]:
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{STATUS_LABEL[status]} · {event.dag_id} · {event.task_id}*\n```{event.message[:300]}```",
+            },
+        },
+        {"type": "context", "elements": [{"type": "mrkdwn", "text": f"{occurrence_count}번째 발생"}]},
+    ]
+
+    if status == "open":
+        actions = [
+            {"type": "button", "text": {"type": "plain_text", "text": "확인"}, "action_id": "ack", "value": event.fingerprint},
+            {"type": "button", "text": {"type": "plain_text", "text": "해결"}, "action_id": "resolve", "value": event.fingerprint},
+        ]
+    elif status == "acked":
+        actions = [
+            {"type": "button", "text": {"type": "plain_text", "text": "해결"}, "action_id": "resolve", "value": event.fingerprint},
+        ]
+    else:
+        actions = None
+
+    if actions:
+        blocks.append({"type": "actions", "elements": actions})
+
+    return blocks
 
 
 def _dashboard_blocks(stats: dict) -> list[dict]:

@@ -1,7 +1,8 @@
 fastapi
 uvicorn[standard]
 sqlmodel
-redis
 slack-sdk
+slack-bolt
+aiohttp
 apscheduler
 pydantic-settings

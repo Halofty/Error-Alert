@@ -4,7 +4,7 @@ from typing import Callable
 
 from app.adapters.base import AlertChannel
 from app.adapters.slack import SlackAdapter
-from app.config import Settings
+from app.config import Settings, get_settings
 
 
 def _build_slack(settings: Settings) -> AlertChannel:
@@ -30,7 +30,7 @@ BUILDERS: dict[str, Callable[[Settings], AlertChannel]] = {
 
 
 def load_active_channels(settings: Settings | None = None) -> list[AlertChannel]:
-    settings = settings or Settings()
+    settings = settings or get_settings()
     channels: list[AlertChannel] = []
 
     for name in settings.channel_names:

@@ -1,0 +1,18 @@
+# 기본적으로 텍스트 파일은 LF 사용
+* text=auto eol=lf
+
+# Windows 전용 스크립트가 있다면 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Python
+*.py text eol=lf
+
+# Config / docs
+*.md text eol=lf
+*.txt text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
