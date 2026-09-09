@@ -141,5 +141,8 @@ bash deploy.sh
 ```bash
 tail -f logs/ingest.log      # 앱 자체 로그 (RotatingFileHandler)
 tail -f logs/listener.log
-tail -f logs/ingest-crash.log    # Termux:Boot 루프가 재시작을 기록한 로그
+tail -f logs/ingest-crash.log    # Termux:Boot 루프가 재시작을 기록한 로그 (최근 500줄만 유지)
+tail -f logs/listener-crash.log
 ```
+
+`*-crash.log`에 재부팅·업데이트와 무관하게 재시작 기록이 계속 쌓인다면, 배터리 최적화 "제한 없음" 설정이 실제로 안 먹혔거나 다시 풀렸다는 신호다 — 4번을 재확인한다.

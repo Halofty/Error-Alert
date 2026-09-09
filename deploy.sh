@@ -13,8 +13,11 @@ pkill -f "app.ingest_server" 2>/dev/null || true
 pkill -f "app.socket_listener" 2>/dev/null || true
 sleep 1
 
-nohup python -m app.ingest_server >> logs/ingest.out 2>&1 &
-nohup python -m app.socket_listener >> logs/listener.out 2>&1 &
+# >> 대신 > — 매 배포마다 새로 씀. 계속 append하면 재배포할 때마다 무한정 커진다.
+# (앱 자체 로그는 logging_config.py가 이미 회전시켜서 별도 보관하고, 이 .out은
+# setup_logging()이 뜨기도 전에 나는 임포트/문법 에러 같은 걸 잡기 위한 최소한의 안전망이다)
+nohup python -m app.ingest_server > logs/ingest.out 2>&1 &
+nohup python -m app.socket_listener > logs/listener.out 2>&1 &
 
 sleep 2
 echo "배포 완료."
