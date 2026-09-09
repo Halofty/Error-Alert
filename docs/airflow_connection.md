@@ -8,7 +8,7 @@ Airflow(Linux PC)가 알림 서버(GalaxyBook·Termux)로 에러를 보내는 �
 
 - Airflow와 Termux가 같은 LAN이면 Termux의 로컬 IP로 직접 접근.
 - 같은 LAN이 아니면(외부 네트워크, 다른 장소) Tailscale 사설망을 통해 접근 — 포트포워딩/공인 IP는 쓰지 않는다(초기 설계안 참고).
-- 엔드포인트: `POST http://<termux-host>:8000/ingest`
+- 엔드포인트: `POST http://<termux-host>:8001/ingest` (포트는 서버의 `ALERT_SERVER_PORT`, 기본값 8001)
 
 ## 2. 정상 경로 — `on_failure_callback` → `/ingest`
 
@@ -43,7 +43,7 @@ X-Alert-Token: <공유 시크릿>
 import requests
 from airflow.models import Variable
 
-ALERT_SERVER_URL = "http://<termux-host>:8000/ingest"
+ALERT_SERVER_URL = "http://<termux-host>:8001/ingest"
 ALERT_TOKEN = Variable.get("alert_server_token")
 SLACK_FALLBACK_WEBHOOK = Variable.get("slack_fallback_webhook")
 

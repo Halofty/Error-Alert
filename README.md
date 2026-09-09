@@ -49,7 +49,7 @@ chmod +x ~/.termux/boot/*.sh deploy.sh
 echo "=== 준비 끝. 그다음 할 일 ==="
 echo "1) docs/slack_setting.md대로 Slack 앱 만들고 토큰 발급"
 echo "2) nano .env 로 SLACK_BOT_TOKEN / SLACK_APP_TOKEN / SLACK_CHANNEL_ID / ALERT_SERVER_TOKEN 채우기"
-echo "3) Termux:Boot 앱을 폰에서 한 번 직접 실행해서 권한 허용"
+echo "3) Termux:Boot, Termux:API 앱을 Termux 본체와 같은 경로(F-Droid/GitHub)로 설치 후 한 번씩 직접 실행해서 권한 허용 (4번 참고)"
 echo "4) Android 설정 > 앱 > Termux > 배터리 > 제한 없음으로 변경"
 echo "5) bash deploy.sh 로 시작 (README [사용방법] 5번 참고)"
 ```
@@ -86,6 +86,8 @@ nano .env   # 또는 vi — SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID, 
 
 `.env`는 git이 추적하지 않으므로(`.gitignore`) 이후 `git pull`로 코드가 바뀌어도 그대로 남는다 — 토큰을 다시 넣을 필요는 로테이션할 때뿐이다.
 
+`ALERT_SERVER_PORT`는 기본 `8001`(폰에서 다른 프로젝트가 `8000`을 쓰고 있을 걸 감안해서). 그것마저 겹치면 `.env`에서 이 값만 바꾸면 됨 — 코드 어디도 손댈 필요 없음.
+
 ### 4. 상시 구동 설정 (최초 1번)
 
 ```bash
@@ -98,7 +100,12 @@ chmod +x ~/.termux/boot/*.sh deploy.sh
 
 두 스크립트 안의 `cd ~/error-alert` 경로를 실제 클론 위치에 맞게 확인한다. 이후:
 
-- Play스토어에서 설치한 **Termux:Boot** 앱을 한 번 직접 실행해서 권한을 준다 (이후 재부팅마다 두 스크립트가 자동 실행됨)
+- **Termux:Boot 앱 설치 — Termux 본체를 설치한 것과 같은 경로로 받는다.** Termux 애드온(Termux:Boot, Termux:API)은 본체와 출처가 다르면 서명이 안 맞아 동작하지 않는다 (Play스토어 Termux는 개발 중단된 구버전이라 애초에 비권장 — F-Droid 또는 GitHub Releases APK 사용):
+  - F-Droid로 설치했다면 → F-Droid 앱에서 "Termux:Boot" 검색해 설치
+  - GitHub Releases APK로 설치했다면 → https://github.com/termux/termux-boot/releases 에서 **폰과 같은 CPU 아키텍처**의 apk를 받아 설치 (`termux-boot-app.apk`처럼 파일명이 버전·아키텍처별로 다르므로 링크를 고정해두지 않았다 — 페이지에서 직접 확인)
+
+  APK 설치는 Android가 확인 탭을 요구해서 완전히 명령줄만으로는 못 끝낸다. 설치 후 **앱을 한 번 직접 실행해서 권한을 준다** (이후 재부팅마다 두 스크립트가 자동 실행됨).
+- `termux-api` 패키지(위에서 이미 설치됨)가 실제로 동작하려면 **Termux:API 앱**도 마찬가지로 같은 경로로 설치해야 한다 — 안 하면 `termux-wake-lock`이 조용히 실패한다.
 - Android 설정 → 앱 → Termux → 배터리 → **제한 없음**으로 변경 (Doze로 프로세스가 죽는 걸 최대한 방지)
 
 ### 5. 처음 실행 & 확인
@@ -107,13 +114,13 @@ chmod +x ~/.termux/boot/*.sh deploy.sh
 
 ```bash
 bash deploy.sh
-curl http://localhost:8000/health
+curl http://localhost:8001/health
 ```
 
 Slack 채널에 "오늘의 에러 현황" 고정 메시지가 뜨는지는 실제 에러가 한 번 들어와야 생긴다 — 테스트용으로 [docs/airflow_connection.md](docs/airflow_connection.md)의 payload 형식으로 curl 한 번 쳐봐도 된다:
 
 ```bash
-curl -X POST http://localhost:8000/ingest \
+curl -X POST http://localhost:8001/ingest \
   -H "X-Alert-Token: <ALERT_SERVER_TOKEN 값>" \
   -H "Content-Type: application/json" \
   -d '{"dag_id":"test_dag","task_id":"test_task","error_type":"ManualTest","message":"배포 확인용","occurred_at":"2026-09-09T12:00:00+09:00"}'

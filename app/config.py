@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     alert_channels: str = "slack"
     alert_server_token: str | None = None
     alert_db_path: str = "alert.db"
+    alert_server_port: int = 8001
 
     slack_bot_token: str | None = None
     slack_channel_id: str | None = None

@@ -39,7 +39,7 @@ async def health() -> dict:
 
 def main() -> None:
     setup_logging("ingest")
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=None)
+    uvicorn.run(app, host="0.0.0.0", port=get_settings().alert_server_port, log_config=None)
 
 
 if __name__ == "__main__":
