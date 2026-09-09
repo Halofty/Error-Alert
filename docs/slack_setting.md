@@ -14,17 +14,25 @@
 4. YAML 탭에서 [slack.yaml](slack.yaml) 내용을 그대로 붙여넣기
 5. **Next** → 요약 확인(Bot Token Scopes: `chat:write`, `pins:write`, `incoming-webhook`, `commands` / Socket Mode: On / Interactivity: On / Slash Commands: `/errors`) → **Create**
 
-이 한 번으로 아래가 전부 설정된다:
+이 한 번으로 아래가 설정**되어야 한다**:
 - Bot User 생성 (`error-alert`)
 - Bot Token Scopes 4개
 - Socket Mode 활성화
 - Interactivity 활성화 (Request URL 없이 — 소켓으로 받으므로)
 - `/errors` 슬래시 커맨드 등록
 
+> **실제로는 매니페스트의 `socket_mode_enabled`/`interactivity.is_enabled`가 콘솔에 제대로 반영 안 되는 경우가 있었다.** 생성 직후 아래 두 곳을 직접 눈으로 확인한다:
+> 1. 왼쪽 메뉴 **Settings → Socket Mode** → **Enable Socket Mode** 토글이 켜져 있는지
+> 2. 왼쪽 메뉴 **Features → Interactivity & Shortcuts** → **Interactivity** 토글이 켜져 있고, **Request URL 입력이 필수로 뜨지 않는지**(필수로 뜨면 Socket Mode가 실제로는 안 켜진 것)
+>
+> 꺼져 있으면 여기서 직접 켜고 **Save Changes**. 이 확인을 건너뛰면 나중에 버튼을 눌렀을 때 "대화식 응답으로 처리하도록 구성되지 않았습니다" 에러로 뒤늦게 발견하게 된다.
+
 ## 2. 워크스페이스에 설치 → Bot Token 발급
 
 1. 왼쪽 메뉴 **Install App** → **Install to Workspace** → 권한 확인 후 **Allow**
 2. 같은 페이지(또는 **OAuth & Permissions**)에 표시되는 **Bot User OAuth Token**(`xoxb-`로 시작)을 복사 → `.env`의 `SLACK_BOT_TOKEN`
+
+> **주의**: 이후에 스코프를 바꾸거나(매니페스트 재수정 등) 5번(Incoming Webhooks)을 나중에 활성화하면, 기존 Bot Token은 그 시점의 권한만 반영한 채로 고정되어 있다. 실행 중 `missing_scope` 에러가 나면 토큰이 최신 권한을 반영 못 하고 있다는 뜻 — **OAuth & Permissions → Reinstall to Workspace**로 다시 설치해서 새 토큰을 받아 `.env`에 갱신해야 한다.
 
 ## 3. Socket Mode용 App-Level Token 발급
 
@@ -61,3 +69,11 @@ Termux(또는 로컬 테스트 환경)에서 `.env.example`을 복사한 뒤 위
 ## 7. 확인
 
 [README.md](../README.md#사용방법)의 [사용방법] 5번(curl로 `/ingest` 호출)을 실행해서 채널에 실제로 메시지가 뜨는지, 대시보드가 갱신되는지 확인한다. 확인/해결 버튼도 눌러서 상태 전이가 반영되는지 본다.
+
+### 흔한 에러
+
+| 증상 | 원인 | 해결 |
+|---|---|---|
+| `/ingest` 호출 시 `missing_scope` (`logs/ingest.log`) | Bot Token이 최신 스코프를 반영 못 함 | 2단계 주의사항 — Reinstall to Workspace 후 토큰 갱신 |
+| 버튼 클릭 시 "대화식 응답으로 처리하도록 구성되지 않았습니다" | Socket Mode/Interactivity 토글이 실제로는 꺼져 있음 | 1단계 확인사항 — Settings → Socket Mode, Features → Interactivity & Shortcuts 직접 확인 |
+| `/ingest` 호출 시 `not_in_channel` (`logs/ingest.log`) | 봇이 `SLACK_CHANNEL_ID` 채널에 초대되어 있지 않음 | 그 채널에서 `/invite @error-alert` (4단계를 실제로 실행 안 했거나, 다른 채널에 초대한 경우) |

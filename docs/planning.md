@@ -65,6 +65,14 @@
 3. **실제 flood(무한 재시도 루프 등)로 데이터 기반 rate limiting이 필요해질 때** — `INCR`+`EXPIRE` sliding window가 필요한 시점.
 4. **실시간 웹 대시보드(SSE/WebSocket)를 붙일 때** — Pub/Sub으로 "새 이벤트 발생"을 브로드캐스트해야 폴링 없이 push 가능.
 
+## 실채널 검증 중 발견한 버그 (2026-09-09)
+
+실제 Slack 채널로 처음 테스트하면서 나온 문제와 조치:
+
+- **`secrets.compare_digest` 비ASCII 문자열 TypeError** — 플레이스홀더를 그대로 붙여넣는 등 비ASCII 토큰이 오면 401 대신 500으로 죽던 것. `.encode()`로 바이트 비교하도록 수정(`app/ingest.py`), 회귀 테스트 추가.
+- **`SlackAdapter`가 삭제된 메시지를 영구적으로 못 벗어남** — 참조하던 메시지(대시보드 고정 메시지, 개별 에러 메시지)가 Slack에서 지워지면 `chat.update`가 `message_not_found`로 계속 실패하고 아무도 복구를 안 해서 그 이후 해당 이벤트는 영구적으로 500. `upsert_error`/`update_dashboard` 둘 다 `message_not_found`/`channel_not_found`를 잡아서 새 메시지로 자동 대체하도록 수정(`app/adapters/slack.py`), 테스트 추가.
+- **Slack 쪽 설정 문제 3종**(코드 버그 아님, 문서화함): Bot Token이 스코프 변경 후 재설치 안 해서 낡은 채로 있었던 것(`missing_scope`), Socket Mode/Interactivity 토글이 매니페스트로는 실제로 안 켜져 있던 것, 봇이 채널에 초대 안 되어 있던 것(`not_in_channel`) — 전부 `docs/slack_setting.md`의 "흔한 에러" 표에 정리.
+
 ## Termux:Boot 견고성 개선 (2026-09-09)
 
 다른 프로젝트에서 나온 체크리스트를 대조해서 발견·수정:

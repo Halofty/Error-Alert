@@ -33,7 +33,7 @@ app/
 ```bash
 cd ~
 pkg update -y
-pkg install -y python git openssh rust clang termux-boot termux-api
+pkg install -y python git openssh rust clang termux-api
 
 git clone <repo-url> error-alert
 cd error-alert
@@ -91,12 +91,14 @@ nano .env   # 또는 vi — SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID, 
 ### 4. 상시 구동 설정 (최초 1번)
 
 ```bash
-pkg install termux-boot termux-api
+pkg install termux-api
 mkdir -p ~/.termux/boot
 cp deploy/termux-boot/ingest.sh ~/.termux/boot/
 cp deploy/termux-boot/listener.sh ~/.termux/boot/
 chmod +x ~/.termux/boot/*.sh deploy.sh
 ```
+
+(`termux-boot`라는 `pkg` 패키지는 없다 — Termux:Boot는 CLI 패키지 없이 앱(APK)만으로 동작한다. `termux-api`만 설치하면 된다.)
 
 두 스크립트 안의 `cd ~/error-alert` 경로를 실제 클론 위치에 맞게 확인한다. 이후:
 

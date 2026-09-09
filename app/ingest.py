@@ -37,7 +37,11 @@ class IngestPayload(BaseModel):
 
 
 def verify_token(x_alert_token: str = Header(...), settings: Settings = Depends(get_settings)) -> None:
-    if settings.alert_server_token is None or not secrets.compare_digest(x_alert_token, settings.alert_server_token):
+    # secrets.compare_digest는 str끼리 비교할 때 ASCII만 지원하고, 아니면 TypeError를
+    # 던진다(500으로 새어나감). bytes로 바꿔 비교하면 이 제약이 없어 항상 401로 처리된다.
+    if settings.alert_server_token is None or not secrets.compare_digest(
+        x_alert_token.encode(), settings.alert_server_token.encode()
+    ):
         raise HTTPException(status_code=401, detail="invalid token")
 
 

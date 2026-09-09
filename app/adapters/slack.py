@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from app.adapters.base import DigestReport, ErrorEvent
 
+from slack_sdk.errors import SlackApiError
 from slack_sdk.web.async_client import AsyncWebClient
 
 STATUS_LABEL = {"open": "🔴 미해결", "acked": "🟡 확인함", "resolved": "🟢 해결됨"}
 STATUS_COLOR = {"open": "#C13F26", "acked": "#B8860B", "resolved": "#1C8A4C"}
+
+# 참조하던 메시지가 수동 삭제되는 등으로 사라졌을 때의 Slack 에러 코드.
+# 이 경우 그대로 실패시키면 그다음부터 영구적으로 막히므로, 새 메시지로 대체한다.
+MISSING_MESSAGE_ERRORS = {"message_not_found", "channel_not_found"}
 
 
 class SlackAdapter:
@@ -20,21 +25,33 @@ class SlackAdapter:
     ) -> str:
         attachment = {"color": STATUS_COLOR[status], "blocks": _error_blocks(event, occurrence_count, status)}
 
-        if ref_id is None:
-            resp = await self._client.chat_postMessage(channel=self._channel_id, attachments=[attachment])
-            return resp["ts"]
+        if ref_id is not None:
+            try:
+                await self._client.chat_update(channel=self._channel_id, ts=ref_id, attachments=[attachment])
+                return ref_id
+            except SlackApiError as e:
+                if e.response.get("error") not in MISSING_MESSAGE_ERRORS:
+                    raise
+                ref_id = None  # 원래 메시지가 사라짐 — 아래에서 새로 만든다
 
-        await self._client.chat_update(channel=self._channel_id, ts=ref_id, attachments=[attachment])
-        return ref_id
+        resp = await self._client.chat_postMessage(channel=self._channel_id, attachments=[attachment])
+        return resp["ts"]
 
     async def update_dashboard(self, ref_id: str | None, stats: dict) -> str:
         blocks = _dashboard_blocks(stats)
-        if ref_id is None:
-            resp = await self._client.chat_postMessage(channel=self._channel_id, blocks=blocks)
-            await self._client.pins_add(channel=self._channel_id, timestamp=resp["ts"])
-            return resp["ts"]
-        await self._client.chat_update(channel=self._channel_id, ts=ref_id, blocks=blocks)
-        return ref_id
+
+        if ref_id is not None:
+            try:
+                await self._client.chat_update(channel=self._channel_id, ts=ref_id, blocks=blocks)
+                return ref_id
+            except SlackApiError as e:
+                if e.response.get("error") not in MISSING_MESSAGE_ERRORS:
+                    raise
+                ref_id = None  # 원래 메시지가 사라짐 — 아래에서 새로 만든다
+
+        resp = await self._client.chat_postMessage(channel=self._channel_id, blocks=blocks)
+        await self._client.pins_add(channel=self._channel_id, timestamp=resp["ts"])
+        return resp["ts"]
 
     async def post_digest(self, report: DigestReport) -> None:
         top = "\n".join(f"• {dag} — {count}건" for dag, count in report.top_dags[:5])
